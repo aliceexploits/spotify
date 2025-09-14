@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Ghibli</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gradient-to-b from-sky-200 to-sky-100 font-[Poppins]">
+
+  <!-- 🟢 Pantalla de login -->
+  <div id="login-screen" class="w-80 h-[90vh] bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl flex flex-col items-center justify-center animate-fadeIn">
+    <h1 class="text-2xl font-bold text-sky-700 mb-6 text-center">Bienvenido a Spotify Ghibli</h1>
+    <button id="login-btn" class="bg-sky-500 text-white px-6 py-3 rounded-full shadow-lg hover:bg-sky-600 hover:scale-105 active:scale-95 transition-all duration-300">
+      Iniciar sesión con Spotify
+    </button>
+  </div>
+
+  <!-- 🟢 Pantalla principal (playlists + reproductor) -->
+  <div id="app" class="w-80 h-[90vh] flex flex-col hidden">
+
+    <!-- Pantalla de playlists -->
+    <div id="playlists-screen" class="flex flex-col flex-1 bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl p-5 animate-fadeIn">
+      <h1 class="text-2xl font-bold text-sky-700 mb-5">Mis Playlists</h1>
+      <div id="playlist-container" class="flex flex-col gap-3 overflow-y-auto"></div>
+    </div>
+
+    <!-- Pantalla de canciones -->
+    <div id="tracks-screen" class="flex flex-col flex-1 bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl p-5 hidden animate-fadeIn">
+      <button id="back-btn" class="mb-4 text-sky-700 font-bold hover:underline">⬅ Volver</button>
+      <h1 id="playlist-title" class="text-2xl font-bold text-sky-700 mb-5">Playlist Name</h1>
+      <div id="tracks-container" class="flex flex-col gap-3 overflow-y-auto"></div>
+    </div>
+
+    <!-- Reproductor -->
+    <div id="player" class="mt-4 bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl w-full p-6 flex flex-col items-center hidden animate-slideUp">
+      
+      <!-- Portada vinilo -->
+      <div class="w-48 h-48 mb-6 rounded-full overflow-hidden shadow-lg animate-spin-slow">
+        <img id="cover" src="https://i.scdn.co/image/ab67616d0000b2737a61efad0b6b8d8f50c1a52a" 
+             alt="Cover" class="w-full h-full object-cover">
+      </div>
+      
+      <!-- Info canción -->
+      <div class="text-center mb-4">
+        <h2 id="title" class="text-lg font-bold text-sky-700">Path of the Wind</h2>
+        <p id="artist" class="text-sm text-gray-600">Joe Hisaishi</p>
+      </div>
+      
+      <!-- Barra de progreso -->
+      <div class="w-full flex items-center text-xs text-gray-500">
+        <span id="current-time">1:25</span>
+        <div class="flex-1 h-2 mx-2 bg-sky-100 rounded-full cursor-pointer overflow-hidden">
+          <div id="progress" class="h-2 bg-sky-400 w-1/3 transition-all duration-500"></div>
+        </div>
+        <span id="total-time">3:45</span>
+      </div>
+      
+      <!-- Botones de control -->
+      <div class="flex justify-around items-center w-full mt-6">
+        <button class="p-3 bg-white rounded-full shadow-md hover:scale-110 hover:bg-sky-100 active:scale-95 transition-all duration-300">☁️</button>
+        <button class="p-3 bg-white rounded-full shadow-md hover:scale-110 hover:bg-sky-100 active:scale-95 transition-all duration-300">⏮</button>
+        <button id="play-btn" class="p-5 bg-sky-400 rounded-full shadow-lg hover:scale-110 hover:bg-sky-500 active:scale-95 transition-all duration-300 text-2xl text-white">🐻</button>
+        <button class="p-3 bg-white rounded-full shadow-md hover:scale-110 hover:bg-sky-100 active:scale-95 transition-all duration-300">⏭</button>
+        <button class="p-3 bg-white rounded-full shadow-md hover:scale-110 hover:bg-sky-100 active:scale-95 transition-all duration-300">☁️</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Animaciones personalizadas -->
+  <style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.9s ease-in-out; }
+
+    @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-slideUp { animation: slideUp 0.5s ease-out; }
+
+    .animate-spin-slow { animation: spin 15s linear infinite; }
+  </style>
+
+  <!-- JS login + navegación -->
+  <script>
+    const clientId = "TU_CLIENT_ID"; 
+    const redirectUri = "http://localhost:5500/"; 
+    const scopes = "user-read-playback-state user-modify-playback-state playlist-read-private";
+
+    const loginBtn = document.getElementById("login-btn");
+    const loginScreen = document.getElementById("login-screen");
+    const app = document.getElementById("app");
+
+    loginBtn.addEventListener("click", () => {
+      const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
+      window.location.href = url;
+    });
+
+    // Obtener token de URL
+    function getTokenFromUrl() {
+      const hash = window.location.hash.substring(1).split("&").reduce((acc, item) => {
+        if (item) {
+          const parts = item.split("=");
+          acc[parts[0]] = decodeURIComponent(parts[1]);
+        }
+        return acc;
+      }, {});
+      return hash.access_token;
+    }
+
+    const token = getTokenFromUrl();
+    if (token) {
+      window.location.hash = "";
+      loginScreen.classList.add("hidden");
+      app.classList.remove("hidden");
+      loadUserPlaylists(token);
+    }
+
+    // Elementos DOM
+    const playlistContainer = document.getElementById("playlist-container");
+    const tracksScreen = document.getElementById("tracks-screen");
+    const tracksContainer = document.getElementById("tracks-container");
+    const playlistTitle = document.getElementById("playlist-title");
+    const backBtn = document.getElementById("back-btn");
+    const player = document.getElementById("player");
+    const cover = document.getElementById("cover");
+    const title = document.getElementById("title");
+    const artist = document.getElementById("artist");
+
+    // Cargar playlists
+    async function loadUserPlaylists(token) {
+      const res = await fetch("https://api.spotify.com/v1/me/playlists", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const data = await res.json();
+      displayPlaylists(data.items);
+    }
+
+    function displayPlaylists(playlists) {
+      playlistContainer.innerHTML = "";
+      playlists.forEach(pl => {
+        const btn = document.createElement("button");
+        btn.className = "flex items-center gap-3 p-2 bg-white/50 rounded-xl hover:bg-sky-100 transition";
+        btn.innerHTML = `
+          <img src="${pl.images[0]?.url || ''}" class="w-12 h-12 rounded-lg">
+          <span class="text-gray-800 font-semibold">${pl.name}</span>
+        `;
+        btn.addEventListener("click", () => loadTracks(pl.id, pl.name));
+        playlistContainer.appendChild(btn);
+      });
+    }
+
+    async function loadTracks(playlistId, name) {
+      playlistContainer.parentElement.classList.add("hidden");
+      tracksScreen.classList.remove("hidden");
+      playlistTitle.textContent = name;
+      tracksContainer.innerHTML = "";
+      player.classList.add("hidden");
+
+      const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const data = await res.json();
+
+      data.items.forEach(item => {
+        const track = item.track;
+        const trackBtn = document.createElement("button");
+        trackBtn.className = "flex items-center gap-3 p-2 bg-white/50 rounded-xl hover:bg-sky-100 transition";
+        trackBtn.innerHTML = `
+          <img src="${track.album.images[0]?.url || ''}" class="w-12 h-12 rounded-lg">
+          <div class="flex flex-col text-left">
+            <span class="text-gray-800 font-semibold">${track.name}</span>
+            <span class="text-gray-600 text-sm">${track.artists.map(a => a.name).join(", ")}</span>
+          </div>
+        `;
+        trackBtn.addEventListener("click", () => playTrack(track));
+        tracksContainer.appendChild(trackBtn);
+      });
+    }
+
+    function playTrack(track) {
+      player.classList.remove("hidden");
+      player.classList.add("animate-slideUp");
+      cover.src = track.album.images[0]?.url || "";
+      title.textContent = track.name;
+      artist.textContent = track.artists.map(a => a.name).join(", ");
+    }
+
+    backBtn.addEventListener("click", () => {
+      tracksScreen.classList.add("hidden");
+      playlistContainer.parentElement.classList.remove("hidden");
+      player.classList.add("hidden");
+    });
+  </script>
+
+</body>
+</html>
