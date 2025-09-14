@@ -1,7 +1,7 @@
-// 🔑 Configura tus datos de Spotify
 const clientId = "c8e8431627634e3f8bee8f9075185c73";
 const redirectUri = "https://aliceexploits.github.io/spotify/";
-const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
+const scopes = "user-read-playback-state user-modify-playback-state playlist-read-private"; // <--- agregado
+
 
 
 // Botón de login
@@ -172,4 +172,3 @@ if (embedContainer) {
     ></iframe>
   `;
 }
-
